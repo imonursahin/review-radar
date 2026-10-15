@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: release
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for a new version
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" > /dev/null 2>&1; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.version.outputs.new == 'true'
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build
+        if: steps.version.outputs.new == 'true'
+        run: |
+          npm ci
+          npm test
+          npm run dist
+
+      - name: Publish the release
+        if: steps.version.outputs.new == 'true'
+        run: |
+          version=${{ steps.version.outputs.version }}
+          gh release create "v$version" "dist/ReviewRadar-$version-arm64.dmg" \
+            --target "$GITHUB_SHA" --title "Review Radar $version" --generate-notes
+
+      - name: Update the Homebrew cask
+        if: steps.version.outputs.new == 'true'
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          version=${{ steps.version.outputs.version }}
+          sha=$(shasum -a 256 "dist/ReviewRadar-$version-arm64.dmg" | cut -d ' ' -f 1)
+          git clone "https://x-access-token:$TAP_TOKEN@github.com/imonursahin/homebrew-tap.git" tap
+          cd tap
+          sed -i '' -E \
+            -e "s/^  version \".*\"/  version \"$version\"/" \
+            -e "s/^  sha256 \".*\"/  sha256 \"$sha\"/" \
+            Casks/review-radar.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "review-radar $version"
+          git push
