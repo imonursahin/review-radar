@@ -9,6 +9,7 @@ const DEFAULTS = {
   notify: true,
   sound: false,
   includeDrafts: true,
+  filters: { repos: [] },
   login: null,
   scopes: null,
   initialized: false,
@@ -77,6 +78,7 @@ function clearAccount() {
     known: {},
     unseen: [],
     lastSummaryDate: null,
+    filters: { repos: [] },
   });
 }
 

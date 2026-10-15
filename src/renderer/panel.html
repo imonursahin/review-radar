@@ -8,6 +8,7 @@
     />
     <title>Review Radar</title>
     <link rel="stylesheet" href="base.css" />
+    <link rel="stylesheet" href="filter.css" />
     <link rel="stylesheet" href="panel.css" />
   </head>
   <body>
@@ -17,8 +18,27 @@
           <div class="title">Waiting on your review</div>
           <div class="subtitle" id="subtitle"></div>
         </div>
-        <button class="link" id="refresh" type="button">Refresh</button>
+        <div class="header-actions">
+          <button class="link" id="filter-toggle" type="button" aria-expanded="false" aria-controls="filter">Filter</button>
+          <button class="link" id="refresh" type="button">Refresh</button>
+        </div>
       </header>
+      <section class="filter" id="filter" hidden>
+        <div class="filter-head">
+          <label class="filter-field">
+            <span class="filter-mag" aria-hidden="true">⌕</span>
+            <input type="search" id="filter-search" placeholder="Search repositories…" aria-label="Search repositories" />
+          </label>
+          <button class="link" id="filter-refresh" type="button">Reload</button>
+        </div>
+        <div class="filter-chips" id="filter-chips" hidden></div>
+        <div class="filter-list" id="filter-list"></div>
+        <p class="filter-status" id="filter-status" role="status" hidden></p>
+        <div class="filter-foot">
+          <span class="filter-summary" id="filter-summary"></span>
+          <button class="link" id="filter-clear" type="button">Clear all</button>
+        </div>
+      </section>
       <div class="error-row" id="error" role="alert" hidden></div>
       <ul id="list" aria-label="Pull requests waiting on your review"></ul>
       <div class="empty" id="empty" hidden>Nothing waiting on you.</div>
@@ -30,6 +50,7 @@
     </div>
     <script src="avatar.js"></script>
     <script src="tray-icon.js"></script>
+    <script src="filter-panel.js"></script>
     <script src="panel.js"></script>
   </body>
 </html>

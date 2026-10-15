@@ -86,6 +86,43 @@ function buildRows(prs, { now, yellowDays, redDays, unseen }) {
     .sort((a, b) => b.ageMs - a.ageMs);
 }
 
+function matchesFilter(repoFullName, visibleRepos) {
+  if (!visibleRepos || visibleRepos.size === 0) return true;
+  return visibleRepos.has(String(repoFullName ?? '').toLowerCase());
+}
+
+function buildFilterList(pool, selectedRepos) {
+  const selected = new Set(selectedRepos.map((name) => name.toLowerCase()));
+  const orgLogins = new Set((pool.orgs ?? []).map((login) => login.toLowerCase()));
+  const avatars = pool.avatars ?? {};
+  const byOwner = new Map();
+  for (const nameWithOwner of pool.repos ?? []) {
+    const [owner, name] = nameWithOwner.split('/');
+    const key = owner.toLowerCase();
+    if (!byOwner.has(key)) byOwner.set(key, { owner, isOrg: orgLogins.has(key), repos: [] });
+    byOwner.get(key).repos.push({ name, nameWithOwner, selected: selected.has(nameWithOwner.toLowerCase()) });
+  }
+  const stateOf = (repos) => {
+    if (repos.length === 0) return 'none';
+    const on = repos.filter((repo) => repo.selected).length;
+    if (on === repos.length) return 'all';
+    return on === 0 ? 'none' : 'some';
+  };
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  const poolNames = new Set((pool.repos ?? []).map((name) => name.toLowerCase()));
+  const groups = [...byOwner.values()]
+    .map((group) => ({
+      owner: group.owner,
+      isOrg: group.isOrg,
+      avatarUrl: avatars[group.owner.toLowerCase()] ?? null,
+      state: stateOf(group.repos),
+      repos: group.repos.sort(byName),
+    }))
+    .sort((a, b) => Number(b.isOrg) - Number(a.isOrg) || a.owner.localeCompare(b.owner));
+  const missing = selectedRepos.filter((name) => !poolNames.has(name.toLowerCase())).sort();
+  return { groups, missing, truncated: Boolean(pool.truncated) };
+}
+
 function isNewerVersion(latest, current) {
   const parse = (version) =>
     String(version)
@@ -113,4 +150,6 @@ module.exports = {
   trayState,
   buildRows,
   isNewerVersion,
+  matchesFilter,
+  buildFilterList,
 };

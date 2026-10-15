@@ -12,6 +12,8 @@ const {
   trayState,
   buildRows,
   isNewerVersion,
+  matchesFilter,
+  buildFilterList,
 } = require('../src/main/logic');
 
 const event = (createdAt, requestedReviewer) => ({ createdAt, requestedReviewer });
@@ -190,4 +192,62 @@ test('isNewerVersion compares release tags number by number', () => {
   assert.equal(isNewerVersion('v1.0.0', '1.0.0'), false);
   assert.equal(isNewerVersion('1.0', '1.0.0'), false);
   assert.equal(isNewerVersion('v0.9.9', '1.0.0'), false);
+});
+
+test('matchesFilter shows everything when nothing is selected', () => {
+  assert.equal(matchesFilter('acme/web', new Set()), true);
+  assert.equal(matchesFilter('acme/web', undefined), true);
+});
+
+test('matchesFilter keeps only the selected repositories', () => {
+  assert.equal(matchesFilter('acme/web', new Set(['acme/web'])), true);
+  assert.equal(matchesFilter('acme/api', new Set(['acme/web'])), false);
+});
+
+test('matchesFilter ignores case and tolerates a missing repo name', () => {
+  assert.equal(matchesFilter('Acme/Web', new Set(['acme/web'])), true);
+  assert.equal(matchesFilter(undefined, new Set(['acme/web'])), false);
+});
+
+const POOL = {
+  orgs: ['zorg'],
+  repos: ['zorg/web', 'zorg/api', 'alice/tool'],
+  avatars: { zorg: 'https://avatars.githubusercontent.com/zorg', alice: 'https://avatars.githubusercontent.com/alice' },
+  truncated: false,
+};
+
+test('buildFilterList groups by owner, orgs first, with short repo names', () => {
+  const list = buildFilterList(POOL, ['zorg/web']);
+  assert.deepEqual(
+    list.groups.map((group) => [group.owner, group.isOrg, group.avatarUrl, group.state]),
+    [
+      ['zorg', true, 'https://avatars.githubusercontent.com/zorg', 'some'],
+      ['alice', false, 'https://avatars.githubusercontent.com/alice', 'none'],
+    ],
+  );
+  assert.deepEqual(list.groups[0].repos, [
+    { name: 'api', nameWithOwner: 'zorg/api', selected: false },
+    { name: 'web', nameWithOwner: 'zorg/web', selected: true },
+  ]);
+});
+
+test('buildFilterList reports all/none group states', () => {
+  assert.equal(buildFilterList(POOL, ['zorg/web', 'zorg/api']).groups[0].state, 'all');
+  assert.equal(buildFilterList(POOL, []).groups[0].state, 'none');
+});
+
+test('buildFilterList surfaces checked entries missing from the pool', () => {
+  const list = buildFilterList(POOL, ['zorg/web', 'old/repo']);
+  assert.deepEqual(list.missing, ['old/repo']);
+});
+
+test('buildFilterList reports an empty group as none, not all', () => {
+  assert.equal(buildFilterList({ orgs: [], repos: [] }, []).groups.length, 0);
+});
+
+test('buildFilterList matches case-insensitively and passes truncation through', () => {
+  const list = buildFilterList({ ...POOL, truncated: true }, ['Zorg/Web']);
+  assert.equal(list.groups[0].repos.find((repo) => repo.nameWithOwner === 'zorg/web').selected, true);
+  assert.deepEqual(list.missing, []);
+  assert.equal(list.truncated, true);
 });

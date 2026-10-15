@@ -5,6 +5,7 @@ const LATEST_RELEASE_URL = 'https://api.github.com/repos/imonursahin/review-rada
 const TIMEOUT_MS = 15000;
 const GH_TIMEOUT_MS = 3000;
 const GH_PATH = ['/opt/homebrew/bin', '/usr/local/bin', process.env.PATH].filter(Boolean).join(':');
+const ORG_CONCURRENCY = 6;
 
 const REVIEWS_QUERY = `
 query {
@@ -17,7 +18,7 @@ query {
         url
         isDraft
         createdAt
-        repository { name }
+        repository { name nameWithOwner }
         author { login avatarUrl }
         labels(first: 5) { nodes { name } }
         timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 20) {
@@ -41,6 +42,35 @@ query($login: String!) {
   viewer {
     organizations(first: 100) {
       nodes { login teams(first: 100, userLogins: [$login]) { nodes { slug } } }
+    }
+  }
+}`;
+
+const ORGS_QUERY = `
+query {
+  viewer {
+    organizations(first: 100) {
+      nodes { login }
+    }
+  }
+}`;
+
+const VIEWER_REPOS_QUERY = `
+query($cursor: String) {
+  viewer {
+    repositories(first: 100, after: $cursor, affiliations: [OWNER, COLLABORATOR], orderBy: { field: NAME, direction: ASC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes { nameWithOwner owner { avatarUrl } }
+    }
+  }
+}`;
+
+const ORG_REPOS_QUERY = `
+query($login: String!, $cursor: String) {
+  organization(login: $login) {
+    repositories(first: 100, after: $cursor, orderBy: { field: NAME, direction: ASC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes { nameWithOwner owner { avatarUrl } }
     }
   }
 }`;
@@ -143,12 +173,67 @@ async function fetchReviewRequests(token) {
       isDraft: node.isDraft,
       createdAt: node.createdAt,
       repo: node.repository?.name ?? '',
+      repoFullName: node.repository?.nameWithOwner ?? '',
       author: node.author?.login ?? 'ghost',
       avatarUrl: node.author?.avatarUrl ?? null,
       labels: (node.labels?.nodes ?? []).filter(Boolean).map((label) => label.name),
       timelineItems: node.timelineItems,
     }));
   return { prs, warning };
+}
+
+async function collectRepos(token, query, variables, read, maxPages) {
+  const repos = [];
+  let cursor = null;
+  for (let page = 0; page < maxPages; page++) {
+    const { data } = await graphql(token, query, { ...variables, cursor });
+    const connection = read(data);
+    if (!connection) return { repos, truncated: false };
+    for (const repo of connection.nodes ?? []) {
+      if (repo?.nameWithOwner) {
+        repos.push({ nameWithOwner: repo.nameWithOwner, avatarUrl: repo.owner?.avatarUrl ?? null });
+      }
+    }
+    if (!connection.pageInfo?.hasNextPage) return { repos, truncated: false };
+    cursor = connection.pageInfo.endCursor;
+    if (page === maxPages - 1) return { repos, truncated: true };
+  }
+  return { repos, truncated: false };
+}
+
+async function fetchRepoPool(token, { maxPages = 10 } = {}) {
+  const { data } = await graphql(token, ORGS_QUERY);
+  const orgs = (data?.viewer?.organizations?.nodes ?? [])
+    .filter((org) => org?.login)
+    .map((org) => org.login)
+    .sort();
+
+  const names = new Set();
+  const avatars = {};
+  const add = (entries) => {
+    for (const entry of entries) {
+      names.add(entry.nameWithOwner);
+      const owner = entry.nameWithOwner.split('/')[0].toLowerCase();
+      if (entry.avatarUrl && !avatars[owner]) avatars[owner] = entry.avatarUrl;
+    }
+  };
+
+  const mine = await collectRepos(token, VIEWER_REPOS_QUERY, {}, (view) => view?.viewer?.repositories, maxPages);
+  add(mine.repos);
+
+  let truncated = mine.truncated;
+  const read = (view) => view?.organization?.repositories;
+  for (let start = 0; start < orgs.length; start += ORG_CONCURRENCY) {
+    const batch = orgs.slice(start, start + ORG_CONCURRENCY);
+    const found = await Promise.all(
+      batch.map((login) => collectRepos(token, ORG_REPOS_QUERY, { login }, read, maxPages)),
+    );
+    for (const result of found) {
+      add(result.repos);
+      truncated = truncated || result.truncated;
+    }
+  }
+  return { orgs, repos: [...names].sort(), avatars, truncated };
 }
 
 async function fetchLatestRelease(token) {
@@ -193,4 +278,4 @@ async function readGhAccount() {
   return token ? { token, login } : null;
 }
 
-module.exports = { GitHubError, fetchViewer, fetchTeams, fetchReviewRequests, fetchLatestRelease, readGhAccount };
+module.exports = { GitHubError, fetchViewer, fetchTeams, fetchRepoPool, fetchReviewRequests, fetchLatestRelease, readGhAccount };

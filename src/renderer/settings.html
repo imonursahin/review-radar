@@ -8,6 +8,7 @@
     />
     <title>Settings</title>
     <link rel="stylesheet" href="base.css" />
+    <link rel="stylesheet" href="filter.css" />
     <link rel="stylesheet" href="settings.css" />
   </head>
   <body>
@@ -22,6 +23,28 @@
               <div class="dim" id="scopes"></div>
             </div>
             <button class="btn" id="sign-out" type="button">Sign out</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Filter</h2>
+        <div class="group">
+          <div class="item">
+            <div class="filter-head">
+              <label class="filter-field">
+                <span class="filter-mag" aria-hidden="true">⌕</span>
+                <input type="search" id="filter-search" placeholder="Search repositories…" aria-label="Search repositories" />
+              </label>
+              <button class="link" id="filter-refresh" type="button">Reload</button>
+            </div>
+          </div>
+          <div class="filter-chips" id="filter-chips" hidden></div>
+          <div class="filter-list" id="filter-list"></div>
+          <p class="filter-status dim" id="filter-status" role="status" hidden></p>
+          <div class="filter-foot">
+            <span class="filter-summary dim" id="filter-summary"></span>
+            <button class="link" id="filter-clear" type="button">Clear all</button>
           </div>
         </div>
       </section>
@@ -88,6 +111,7 @@
       </section>
     </main>
     <script src="avatar.js"></script>
+    <script src="filter-panel.js"></script>
     <script src="settings.js"></script>
   </body>
 </html>

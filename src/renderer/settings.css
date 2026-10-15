@@ -1,10 +1,13 @@
 html,
 body {
+  height: 100%;
   background: #1e1e20;
 }
 
 main {
+  height: 100%;
   padding: 8px 20px 20px;
+  overflow-y: auto;
 }
 
 h2 {
@@ -158,3 +161,39 @@ select {
 .error-text {
   margin: 6px 2px 0;
 }
+
+.filter-chips {
+  padding: 8px 12px 0;
+  max-height: 64px;
+}
+
+.filter-list {
+  max-height: 240px;
+  padding: 4px;
+}
+
+.filter-label {
+  padding: 6px 8px 2px;
+}
+
+.filter-row {
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.filter-status {
+  margin: 0;
+  padding: 6px 12px 0;
+  font-size: 12px;
+}
+
+.filter-foot {
+  padding: 7px 12px 9px;
+  font-size: 12px;
+}
+
+.filter-hint {
+  margin: 6px 2px 0;
+  font-size: 12px;
+}
+

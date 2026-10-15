@@ -22,6 +22,7 @@ const PANEL_MAX_HEIGHT = 620;
 const INTERVALS = [1, 2, 5, 10, 30];
 const QUEUE_URL = 'https://github.com/pulls/review-requested';
 const SUMMARY_HOUR = 9;
+const VALID_REPO = /^[^\s/]{1,100}\/[^\s/]{1,100}$/;
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const RENDERER_URL = `${pathToFileURL(RENDERER).href}/`;
 const PRELOAD = path.join(__dirname, '..', 'preload.js');
@@ -42,6 +43,7 @@ let token = null;
 let session = 0;
 let activePoll = null;
 let teams = null;
+let repoPool = null;
 let prs = [];
 let lastError = null;
 let summaryDue = false;
@@ -66,14 +68,19 @@ function webPreferences() {
   return { preload: PRELOAD, contextIsolation: true, sandbox: true, nodeIntegration: false };
 }
 
-function isVisible(pr) {
-  return store.get().includeDrafts || !pr.isDraft;
+function visibleRepos(settings = store.get()) {
+  return new Set((settings.filters?.repos ?? []).map((repo) => repo.toLowerCase()));
+}
+
+function visibilityFilter(settings = store.get()) {
+  const visible = visibleRepos(settings);
+  return (pr) => (settings.includeDrafts || !pr.isDraft) && logic.matchesFilter(pr.repoFullName, visible);
 }
 
 function currentView() {
   const settings = store.get();
   const unseen = new Set(settings.unseen);
-  const rows = logic.buildRows(prs.filter(isVisible), {
+  const rows = logic.buildRows(prs.filter(visibilityFilter(settings)), {
     now: Date.now(),
     yellowDays: settings.yellowDays,
     redDays: settings.redDays,
@@ -87,6 +94,35 @@ function currentView() {
     oldest: rows.length > 0 ? logic.formatAgeLong(rows[0].ageMs) : null,
     tray: logic.trayState(rows, rows.filter((row) => unseen.has(row.key)).length),
   };
+}
+
+async function loadPool(refresh) {
+  if (repoPool && !refresh) return repoPool;
+  repoPool = await github.fetchRepoPool(token);
+  return repoPool;
+}
+
+async function filterView(refresh) {
+  const selected = store.get().filters?.repos ?? [];
+  try {
+    return { ok: true, ...logic.buildFilterList(await loadPool(refresh), selected) };
+  } catch (error) {
+    console.error('Could not load the repository pool:', error);
+    return {
+      ok: false,
+      error: error.message || 'Could not load your repositories.',
+      ...logic.buildFilterList({ orgs: [], repos: [] }, selected),
+    };
+  }
+}
+
+function withSelection(mutate) {
+  const current = store.get().filters?.repos ?? [];
+  const repos = new Set(current);
+  mutate(repos, current);
+  store.update({ filters: { repos: [...repos] } });
+  push();
+  return filterView(false);
 }
 
 function push() {
@@ -127,7 +163,7 @@ function recordRequests() {
   }
   store.update({ known: Object.fromEntries(tracked.known), unseen, initialized: true, knownWithTeams: hasTeams });
   if (!settings.notify) return;
-  const fresh = tracked.fresh.filter(isVisible);
+  const fresh = tracked.fresh.filter(visibilityFilter(settings));
   for (const pr of fresh) {
     notify({
       title: 'New review request',
@@ -185,6 +221,7 @@ function startSession(newToken) {
   session += 1;
   token = newToken;
   teams = null;
+  repoPool = null;
   prs = [];
   lastError = null;
   shownAsNew = new Set();
@@ -443,6 +480,42 @@ function registerIpc() {
     push();
     return { ok: true, settings: settingsView() };
   });
+
+  handle('filter:view', (_event, refresh) => filterView(refresh === true));
+
+  handle('filter:toggle', (_event, input) => {
+    const name = typeof input?.name === 'string' ? input.name.trim() : '';
+    if (!VALID_REPO.test(name)) return { ok: false, error: 'That repository name is not valid.' };
+    const select = input?.selected === true;
+    return withSelection((repos, current) => {
+      const stored = current.find((repo) => repo.toLowerCase() === name.toLowerCase());
+      if (select) {
+        if (!stored) repos.add(name);
+      } else if (stored) {
+        repos.delete(stored);
+      }
+    });
+  });
+
+  handle('filter:owner', (_event, input) => {
+    const owner = typeof input?.owner === 'string' ? input.owner.trim().toLowerCase() : '';
+    if (!owner) return { ok: false, error: 'That owner is not valid.' };
+    if (!repoPool) return { ok: false, error: 'The repository list is still loading.' };
+    const select = input?.select === true;
+    return withSelection((repos, current) => {
+      for (const name of repoPool.repos) {
+        if (name.split('/')[0].toLowerCase() !== owner) continue;
+        const stored = current.find((repo) => repo.toLowerCase() === name.toLowerCase());
+        if (select) {
+          if (!stored) repos.add(name);
+        } else if (stored) {
+          repos.delete(stored);
+        }
+      }
+    });
+  });
+
+  handle('filter:clear', () => withSelection((repos) => repos.clear()));
 
   handle('sign-out', () => {
     store.clearAccount();

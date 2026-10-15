@@ -182,3 +182,47 @@ kbd {
   font: inherit;
   color: var(--text-faint);
 }
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.filter {
+  padding: 8px;
+  border-bottom: 1px solid var(--separator);
+}
+
+.filter-chips {
+  margin-top: 8px;
+  max-height: 56px;
+}
+
+.filter-list {
+  margin-top: 6px;
+  max-height: 205px;
+}
+
+.filter-label {
+  padding: 6px 6px 2px;
+}
+
+.filter-row {
+  padding: 4px 6px;
+  border-radius: 7px;
+}
+
+.filter-status {
+  margin: 6px 2px 0;
+  font-size: 11px;
+}
+
+.filter-foot {
+  margin-top: 8px;
+  padding-top: 7px;
+  font-size: 11px;
+}
+
+#panel.filter-open #list {
+  max-height: 150px;
+}

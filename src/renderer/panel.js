@@ -4,8 +4,17 @@ const errorRow = document.getElementById('error');
 const list = document.getElementById('list');
 const empty = document.getElementById('empty');
 const panelElement = document.getElementById('panel');
+const filterToggle = document.getElementById('filter-toggle');
+const filterSection = document.getElementById('filter');
+const filterSearch = document.getElementById('filter-search');
+const filterList = document.getElementById('filter-list');
+const filterStatus = document.getElementById('filter-status');
 
 let lastTrayKey = null;
+
+function measure() {
+  requestAnimationFrame(() => window.radar.setPanelHeight(panelElement.getBoundingClientRect().height));
+}
 
 function describeCount(count, oldest) {
   if (count === 0) return 'No pull requests';
@@ -85,10 +94,30 @@ function render(state) {
     window.radar.setTrayImage(renderTrayImage(state.tray));
   }
 
-  requestAnimationFrame(() => window.radar.setPanelHeight(panelElement.getBoundingClientRect().height));
+  measure();
 }
 
 window.radar.onState(render);
+
+const filterPanel = window.mountFilterPanel({
+  list: filterList,
+  search: filterSearch,
+  empty: filterStatus,
+  refresh: document.getElementById('filter-refresh'),
+  chips: document.getElementById('filter-chips'),
+  summary: document.getElementById('filter-summary'),
+  clear: document.getElementById('filter-clear'),
+  onChange: measure,
+});
+
+filterToggle.addEventListener('click', () => {
+  const opening = filterSection.hidden;
+  filterSection.hidden = !opening;
+  filterToggle.setAttribute('aria-expanded', String(opening));
+  panelElement.classList.toggle('filter-open', opening);
+  if (opening) filterPanel.load(false);
+  measure();
+});
 
 refreshButton.addEventListener('click', () => window.radar.refresh());
 document.getElementById('open-queue').addEventListener('click', () => window.radar.openQueue());
