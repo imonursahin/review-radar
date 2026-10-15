@@ -18,6 +18,8 @@ query {
         url
         isDraft
         createdAt
+        headRefName
+        baseRefName
         repository { name nameWithOwner }
         author { login avatarUrl }
         labels(first: 5) { nodes { name } }
@@ -174,6 +176,8 @@ async function fetchReviewRequests(token) {
       createdAt: node.createdAt,
       repo: node.repository?.name ?? '',
       repoFullName: node.repository?.nameWithOwner ?? '',
+      headRef: node.headRefName ?? '',
+      baseRef: node.baseRefName ?? '',
       author: node.author?.login ?? 'ghost',
       avatarUrl: node.author?.avatarUrl ?? null,
       labels: (node.labels?.nodes ?? []).filter(Boolean).map((label) => label.name),

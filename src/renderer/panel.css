@@ -119,6 +119,26 @@ header {
   line-height: 16px;
 }
 
+.chip.branch {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 4px;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.chip.branch .head {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip.branch span:last-child {
+  flex: none;
+  white-space: pre;
+}
+
 .pill {
   flex: none;
   align-self: flex-start;
@@ -174,8 +194,25 @@ header {
   color: #fff;
 }
 
+.menu button:hover .update-badge {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 .menu button:hover kbd {
   color: rgba(255, 255, 255, 0.85);
+}
+
+.update-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+}
+
+.update-badge[hidden] {
+  display: none;
 }
 
 kbd {
@@ -186,6 +223,22 @@ kbd {
 .header-actions {
   display: flex;
   gap: 12px;
+}
+
+#filter-toggle::after {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-3px) rotate(45deg);
+  transition: transform 0.15s;
+}
+
+#filter-toggle[aria-expanded='true']::after {
+  transform: translateY(0) rotate(-135deg);
 }
 
 .filter {

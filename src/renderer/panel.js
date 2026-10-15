@@ -9,6 +9,7 @@ const filterSection = document.getElementById('filter');
 const filterSearch = document.getElementById('filter-search');
 const filterList = document.getElementById('filter-list');
 const filterStatus = document.getElementById('filter-status');
+const updateBadge = document.getElementById('update-badge');
 
 let lastTrayKey = null;
 
@@ -49,6 +50,19 @@ function createRow(row) {
 
   body.append(meta, title);
 
+  if (row.headRef && row.baseRef) {
+    const branch = document.createElement('div');
+    branch.className = 'chip branch';
+    const head = document.createElement('span');
+    head.className = 'head';
+    head.textContent = row.headRef;
+    const base = document.createElement('span');
+    base.textContent = ` → ${row.baseRef}`;
+    branch.append(head, base);
+    branch.title = `from ${row.headRef} to ${row.baseRef}`;
+    body.append(branch);
+  }
+
   const chipNames = row.isDraft ? ['Draft', ...row.labels] : row.labels;
   if (chipNames.length > 0) {
     const chips = document.createElement('div');
@@ -84,6 +98,8 @@ function render(state) {
 
   errorRow.hidden = !state.error;
   errorRow.textContent = state.error ?? '';
+
+  updateBadge.hidden = !state.update;
 
   list.replaceChildren(...state.rows.map(createRow));
   empty.hidden = state.rows.length > 0 || Boolean(state.error);

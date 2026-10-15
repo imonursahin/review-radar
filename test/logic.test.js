@@ -29,6 +29,8 @@ const pr = (overrides = {}) => ({
   author: 'elif',
   avatarUrl: null,
   labels: [],
+  headRef: 'feature/login',
+  baseRef: 'main',
   timelineItems: { nodes: [] },
   ...overrides,
 });
@@ -169,6 +171,7 @@ test('buildRows sorts oldest first and marks unseen rows', () => {
   assert.deepEqual(rows.map((row) => row.age), ['6d', '5h']);
   assert.deepEqual(rows.map((row) => row.level), ['red', 'green']);
   assert.deepEqual(rows.map((row) => row.isNew), [false, true]);
+  assert.deepEqual([rows[0].headRef, rows[0].baseRef], ['feature/login', 'main']);
 });
 
 test('buildRows never reports a negative age for clock skew', () => {

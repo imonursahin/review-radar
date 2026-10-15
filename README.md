@@ -10,7 +10,7 @@ Built with Electron. No runtime dependencies.
 
 ## What it does
 
-- **Oldest first.** The panel lists every open pull request that asks for your review, with repo, author, labels and a colored age pill. Click a row to open it on GitHub.
+- **Oldest first.** The panel lists every open pull request that asks for your review, with repo, author, the branch it merges from and into, labels and a colored age pill. Click a row to open it on GitHub.
 - **Only what you work on.** Limit the app to the repositories you choose, grouped by owner — organizations and user accounts — from the panel or Settings. Pick a whole owner at once or individual repositories. An empty selection shows everything, and the menu bar count and notifications follow the same filter.
 - **Ages that mean something.** The age counts from the latest review request sent to you or one of your teams, not from when the pull request was opened. If there is no such request, it falls back to the opening time.
 - **Color as a nudge.** Pills turn yellow after 2 days and red after 5. You can change both in Settings.
@@ -66,7 +66,7 @@ brew install --cask imonursahin/tap/review-radar
 
 Apple Silicon only. The app is not signed by Apple, so the cask clears the quarantine flag on install and the app opens normally.
 
-To update, press "Check for updates" in Settings. If a newer release is out, run:
+When a newer release is out, the panel shows "New version available" next to Settings. To check by hand, press "Check for updates" in Settings. To update, run:
 
 ```sh
 brew upgrade --cask review-radar

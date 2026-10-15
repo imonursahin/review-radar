@@ -74,6 +74,8 @@ function buildRows(prs, { now, yellowDays, redDays, unseen }) {
         title: pr.title,
         url: pr.url,
         isDraft: pr.isDraft,
+        headRef: pr.headRef,
+        baseRef: pr.baseRef,
         author: pr.author,
         avatarUrl: pr.avatarUrl,
         labels: pr.labels,

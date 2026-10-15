@@ -28,6 +28,7 @@ const RENDERER_URL = `${pathToFileURL(RENDERER).href}/`;
 const PRELOAD = path.join(__dirname, '..', 'preload.js');
 const MAX_TRAY_IMAGE_LENGTH = 500_000;
 const TRAY_REOPEN_GUARD_MS = 250;
+const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000;
 const SOUND = app.isPackaged
   ? path.join(process.resourcesPath, 'new-request.mp3')
   : path.join(__dirname, '..', '..', 'assets', 'new-request.mp3');
@@ -46,6 +47,7 @@ let teams = null;
 let repoPool = null;
 let prs = [];
 let lastError = null;
+let updateVersion = null;
 let summaryDue = false;
 let shownAsNew = new Set();
 let lastBlurHideAt = 0;
@@ -90,6 +92,7 @@ function currentView() {
     connected: Boolean(token),
     loading: activePoll === session,
     error: lastError,
+    update: updateVersion,
     rows,
     oldest: rows.length > 0 ? logic.formatAgeLong(rows[0].ageMs) : null,
     tray: logic.trayState(rows, rows.filter((row) => unseen.has(row.key)).length),
@@ -127,6 +130,14 @@ function withSelection(mutate) {
 
 function push() {
   if (panel && !panel.isDestroyed()) panel.webContents.send('state', currentView());
+}
+
+async function checkForUpdate() {
+  const latest = await github.fetchLatestRelease(token);
+  const update = latest && logic.isNewerVersion(latest.version, app.getVersion()) ? latest : null;
+  updateVersion = update?.version ?? null;
+  push();
+  return update;
 }
 
 function playSound() {
@@ -534,9 +545,7 @@ function registerIpc() {
 
   handle('check-update', async () => {
     try {
-      const latest = await github.fetchLatestRelease(token);
-      const update = latest && logic.isNewerVersion(latest.version, app.getVersion()) ? latest : null;
-      return { ok: true, update };
+      return { ok: true, update: await checkForUpdate() };
     } catch (error) {
       return { ok: false, error: error.message || 'Could not check for updates.' };
     }
@@ -600,5 +609,9 @@ if (!app.requestSingleInstanceLock()) {
     } else {
       showOnboarding();
     }
+    const checkQuietly = () =>
+      checkForUpdate().catch((error) => console.warn('Update check failed:', error.message));
+    checkQuietly();
+    setInterval(checkQuietly, UPDATE_CHECK_MS);
   });
 }
